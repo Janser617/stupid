@@ -1,0 +1,20 @@
+.under-construction-img{
+  margin: auto;
+  display: block;
+  width: 100%;
+}
+p{
+  text-align: center;
+  font-size: 1.4em;
+}
+
+@media (min-width:1025px) { /* big landscape tablets, laptops, and desktops */
+  .under-construction-img{
+    margin: auto;
+    display: block;
+    width: auto;
+  }
+  .special-img-width{
+    width: 300px;
+  }
+}

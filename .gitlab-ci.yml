@@ -1,0 +1,183 @@
+image: docker:1.13-git   ## default docker image if not overwritten by job
+
+stages:
+- compile
+- build
+#- release
+#- staging
+#- prod
+# - fat
+
+variables:
+  #REPO_URL_NON_PROD: "194003346478.dkr.ecr.eu-central-1.amazonaws.com/claims-frontend"
+  #REPO_URL_PROD: "689784829320.dkr.ecr.eu-central-1.amazonaws.com/claims-frontend"
+  #AWS_REGION: "eu-central-1"
+  #AWS_DEFAULT_REGION: "eu-central-1"
+  DOCKER_REGISTRY: "docker.signintra.com"
+
+compile:
+  image: node:7.4.0
+  stage: compile
+  cache:
+      key: "$CI_JOB_NAME"
+      untracked: true
+      paths:
+        - "node_modules"
+        - "node"
+  script:
+    - ls -l /cache
+    - npm install
+ #   - npm install -g gulp
+    - node_modules/\@angular/cli/bin/ng build --no-progress --env=prod
+  artifacts:
+      name: "${CI_BUILD_STAGE}_${CI_COMMIT_REF_NAME}-dist"
+      expire_in: 1 weeks and 2 days
+      paths:
+        - ./dist/
+  except:
+    - tags
+
+build:
+  #image: docker.signintra.com/docker/ecr:1.0.0
+  stage: build
+  script:
+    #- docker build --pull -t $REPO_URL_NON_PROD:$CI_COMMIT_SHA .
+    #- docker push $REPO_URL_NON_PROD:$CI_COMMIT_SHA
+    - PROJECT_VERSION="latest"
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$PROJECT_VERSION  .
+    - docker push     $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$PROJECT_VERSION
+  except:
+    - tags
+
+#release-by-name:
+#  image: docker.signintra.com/docker/ecr:1.0.0
+#  stage: release
+#  script:
+#    - PROJECT_VERSION="$CI_COMMIT_TAG"
+#    - docker build -t $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$PROJECT_VERSION  .
+#    - docker push     $CI_REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:$PROJECT_VERSION
+#    - docker tag $REPO_URL_NON_PROD:$CI_COMMIT_SHA $REPO_URL_NON_PROD:$CI_COMMIT_TAG
+#    - docker push $REPO_URL_NON_PROD:$CI_COMMIT_TAG
+#    - docker tag $REPO_URL_NON_PROD:$CI_COMMIT_SHA $REPO_URL_PROD:$CI_COMMIT_TAG
+#    - docker push $REPO_URL_PROD:$CI_COMMIT_TAG
+#  only:
+#    - tags
+
+# Master will be released with :latest as the tag
+#release-master:
+#  image: docker.signintra.com/docker/ecr:1.0.0
+#  stage: release
+#  script:
+#    - docker pull $REPO_URL_NON_PROD:$CI_COMMIT_SHA
+#    - docker tag $REPO_URL_NON_PROD:$CI_COMMIT_SHA $REPO_URL_NON_PROD:latest
+#    - docker push $REPO_URL_NON_PROD:latest
+#  only:
+#    - master
+
+#.staging_deploy: &staging_deploy
+#  image: docker.signintra.com/docker/ecr:1.0.0
+#  stage: staging
+#  environment:
+#    name: claims-int
+#    url: https://$CI_ENVIRONMENT_SLUG.signintra.com
+#  variables:
+#    KUBE_NAMESPACE: claims-int
+#    STAGE: nonprod
+#    URL_PREFIX: $CI_ENVIRONMENT_SLUG
+#    KUBECONFIG: /tmp/koffer
+#    REPO_URL: $REPO_URL_NON_PROD
+
+#  before_script:
+#    - if [ -z "KUBECONFIG_NONPROD" ]; then echo "Set KUBECONFIG_NONPROD (base64 encoded) as gitlab secret!"; exit 1; fi
+#    - echo ${KUBECONFIG_NONPROD} | base64 -d > ${KUBECONFIG}
+#    - kubectl create namespace $KUBE_NAMESPACE || true
+#    - kubectl config set-context $(kubectl config current-context) --namespace=$KUBE_NAMESPACE
+#    - export TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHA}"
+#  script:
+#    - kubectl apply -f deployment/config-map.yaml
+#    - envsubst < deployment/deployment.yaml | kubectl apply -f -
+#    - echo "Waiting for deployment..."
+#    - kubectl rollout status -n "$KUBE_NAMESPACE" -w "deployment/$CI_ENVIRONMENT_SLUG"
+#    - echo "configure autoscaling"
+#    - kubectl apply -f deployment/autoscaling-int.yaml
+#  after_script:
+#    - rm ${KUBECONFIG}
+
+#.staging_deploy: &fat_deploy
+#  image: docker.signintra.com/docker/ecr:1.0.0
+#  stage: staging
+#  environment:
+#    name: claims-fat
+#    url: https://$CI_ENVIRONMENT_SLUG.signintra.com
+#  variables:
+#    KUBE_NAMESPACE: claims-fat
+#    STAGE: nonprod
+#    URL_PREFIX: $CI_ENVIRONMENT_SLUG
+#    KUBECONFIG: /tmp/koffer
+#    REPO_URL: $REPO_URL_NON_PROD
+
+#  before_script:
+ #   - if [ -z "KUBECONFIG_NONPROD" ]; then echo "Set KUBECONFIG_NONPROD (base64 encoded) as gitlab secret!"; exit 1; fi
+#    - echo ${KUBECONFIG_NONPROD} | base64 -d > ${KUBECONFIG}
+#    - kubectl create namespace $KUBE_NAMESPACE || true
+#    - kubectl config set-context $(kubectl config current-context) --namespace=$KUBE_NAMESPACE
+#    - export TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHA}"
+#  script:
+#    - kubectl apply -f deployment/config-map-fat.yaml
+#    - envsubst < deployment/deployment.yaml | kubectl apply -f -
+#    - echo "Waiting for deployment..."
+#    - kubectl rollout status -n "$KUBE_NAMESPACE" -w "deployment/$CI_ENVIRONMENT_SLUG"
+#  after_script:
+#    - rm ${KUBECONFIG}
+
+#.staging_deploy: &prod_deploy
+#  image: docker.signintra.com/docker/ecr:1.0.0
+#  stage: staging
+#  environment:
+#    name: claims-prod
+#    url: https://$CI_ENVIRONMENT_SLUG.signintra.com
+#  variables:
+#    KUBE_NAMESPACE: claims-prod
+#    STAGE: prod
+#    URL_PREFIX: $CI_ENVIRONMENT_SLUG
+#    KUBECONFIG: /tmp/koffer
+#    REPO_URL: $REPO_URL_PROD###
+#
+#  before_script:
+ #   - if [ -z "KUBECONFIG_PROD" ]; then echo "Set KUBECONFIG_PROD (base64 encoded) as gitlab secret!"; exit 1; fi
+ #   - echo ${KUBECONFIG_PROD} | base64 -d > ${KUBECONFIG}
+ #   - kubectl create namespace $KUBE_NAMESPACE || true
+ #   - kubectl config set-context $(kubectl config current-context) --namespace=$KUBE_NAMESPACE
+ # script:
+ #   - kubectl apply -f deployment/config-map-prod.yaml
+ #   - envsubst < deployment/deployment.yaml | kubectl apply -f -
+ #   - echo "Waiting for deployment..."
+ #   - kubectl rollout status -n "$KUBE_NAMESPACE" -w "deployment/$CI_ENVIRONMENT_SLUG"
+ #   - export TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHA}"
+ # after_script:
+ #   - rm ${KUBECONFIG}###
+
+#auto-deploy-master:
+#  <<: *staging_deploy
+#  only:
+#    - master
+
+#deploy to staging:
+#  <<: *staging_deploy
+#  when: manual
+#  except:
+#    - master
+#    - tags
+
+#deploy to fat:
+#  <<: *fat_deploy
+#  when: manual
+#  only:
+#    - tags
+
+#deploy to prod:
+#  <<: *prod_deploy
+#  when: manual
+#  only:
+#    - tags
