@@ -7,12 +7,14 @@ import { RouterModule } from '@angular/router';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './home/home.component';
 import { LunchComponent } from './lunch/lunch.component';
+import { PagenotfoundComponent } from './pagenotfound/pagenotfound.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     HomeComponent,
-    LunchComponent
+    LunchComponent,
+    PagenotfoundComponent
   ],
   imports: [
     BrowserModule,
@@ -20,7 +22,8 @@ import { LunchComponent } from './lunch/lunch.component';
     HttpModule,
     RouterModule.forRoot([
       { path: '', component: HomeComponent },
-      { path: 'lunch', component: LunchComponent }
+      { path: 'lunch', component: LunchComponent },
+      { path: '*', component: PagenotfoundComponent}
     ])
   ],
   providers: [],
